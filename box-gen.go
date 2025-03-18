@@ -1,61 +1,98 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
+	"time"
 
 	svg "github.com/ajstarks/svgo"
 )
 
 func main() {
-	// Box dimensions in mm
-	length := 200
-	width := 150
-	height := 100
-	gap := 5
-	cornerRadius := 10
-	foldInset := 1 // 1mm inset for folding
+	// Define command line flags
+	outputFile := flag.String("o", "", "Output file name (default: box_<length>_<width>_<height>.svg)")
+	outputDir := flag.String("d", "out", "Output directory (default: current directory)")
 
-	// Create filename based on dimensions
-	filename := fmt.Sprintf("box_%d_%d_%d.svg", length, width, height)
+	// Box dimensions in mm
+	length := flag.Int("length", 200, "Box length in mm")
+	width := flag.Int("width", 150, "Box width in mm")
+	height := flag.Int("height", 100, "Box height in mm")
+	gap := flag.Int("gap", 5, "Gap between panels in mm")
+	cornerRadius := flag.Int("radius", 10, "Corner radius in mm")
+	foldInset := flag.Int("inset", 1, "Fold inset in mm")
+
+	flag.Parse()
+
+	// Determine filename
+	var filename string
+	if *outputFile != "" {
+		filename = *outputFile
+		// Add .svg extension if not present
+		if filepath.Ext(filename) != ".svg" {
+			filename += ".svg"
+		}
+	} else {
+		// Create filename based on dimensions
+		filename = fmt.Sprintf("box_%d_%d_%d.svg", *length, *width, *height)
+	}
+
+	// Prepend output directory if specified
+	if *outputDir != "" {
+		// Create directory if it doesn't exist
+		if err := os.MkdirAll(*outputDir, 0755); err != nil {
+			fmt.Printf("Error creating directory %s: %v\n", *outputDir, err)
+			return
+		}
+		filename = filepath.Join(*outputDir, filename)
+	}
+
+	// Create output file
 	f, err := os.Create(filename)
 	if err != nil {
-		fmt.Println("Error creating file:", err)
+		fmt.Printf("Error creating file %s: %v\n", filename, err)
 		return
 	}
 	defer f.Close()
 
 	// SVG canvas dimensions (add some margin)
-	canvasWidth := 3*width + 2*length + 4*gap + 100
-	canvasHeight := 2*height + width + 4*gap + 100
+	canvasWidth := 3**width + 2**length + 4**gap + 100
+	canvasHeight := 2**height + *width + 4**gap + 100
 
 	// Calculate panel positions
-	leftPanelStart := gap
-	bottomPanelStart := leftPanelStart + width + gap
-	rightPanelStart := bottomPanelStart + length + gap
-	topPanelStart := leftPanelStart + width + gap
-	lidPanelStart := rightPanelStart + width + gap
+	leftPanelStart := *gap
+	bottomPanelStart := leftPanelStart + *width + *gap
+	rightPanelStart := bottomPanelStart + *length + *gap
+	topPanelStart := leftPanelStart + *width + *gap
+	lidPanelStart := rightPanelStart + *width + *gap
 
-	topEdge := gap
-	middleEdge := topEdge + height + gap
-	bottomEdge := middleEdge + length + gap
+	topEdge := *gap
+	middleEdge := topEdge + *height + *gap
+	bottomEdge := middleEdge + *length + *gap
 
 	// Start SVG
 	canvas := svg.New(f)
 	canvas.Start(canvasWidth, canvasHeight)
+	canvas.Rect(0, 0, canvasWidth, canvasHeight, "fill:white") // Add this line
+
+	// Add metadata
+	canvas.Title(fmt.Sprintf("Box Template %dx%dx%d mm", *length, *width, *height))
+	canvas.Desc(fmt.Sprintf("Generated on %s - Box dimensions: %dx%dx%d mm",
+		time.Now().Format("2006-01-02 15:04:05"), *length, *width, *height))
 
 	// Draw fold lines and cut lines
 	drawFoldLines(canvas, leftPanelStart, bottomPanelStart, rightPanelStart, topPanelStart,
-		lidPanelStart, topEdge, middleEdge, bottomEdge, width, length, height)
+		lidPanelStart, topEdge, middleEdge, bottomEdge, *width, *length, *height)
 
 	drawCutLines(canvas, leftPanelStart, bottomPanelStart, rightPanelStart, topPanelStart,
-		topEdge, middleEdge, bottomEdge, width, length, height, cornerRadius, foldInset)
+		topEdge, middleEdge, bottomEdge, *width, *length, *height, *cornerRadius, *foldInset)
 
 	// Add dimension labels
 	labelStyle := "text-anchor:middle;font-size:14px;font-family:Arial"
-	canvas.Text(bottomPanelStart+length/2, bottomEdge+height+30, fmt.Sprintf("Length: %dmm", length), labelStyle)
-	canvas.Text(leftPanelStart+width/2, bottomEdge+height+30, fmt.Sprintf("Width: %dmm", width), labelStyle)
-	canvas.Text(leftPanelStart-20, middleEdge+height/2, fmt.Sprintf("Height: %dmm", height), labelStyle)
+	canvas.Text(bottomPanelStart+*length/2, bottomEdge+*height+30, fmt.Sprintf("Length: %dmm", *length), labelStyle)
+	canvas.Text(leftPanelStart+*width/2, bottomEdge+*height+30, fmt.Sprintf("Width: %dmm", *width), labelStyle)
+	canvas.Text(leftPanelStart-20, middleEdge+*height/2, fmt.Sprintf("Height: %dmm", *height), labelStyle)
 
 	canvas.End()
 
@@ -72,15 +109,15 @@ func drawFoldLines(canvas *svg.SVG, leftPanelStart, bottomPanelStart, rightPanel
 	canvas.Line(leftPanelStart, bottomEdge, leftPanelStart+width+length+width, bottomEdge, redDotted)
 
 	// Step 2: Vertical fold lines between panels
-	canvas.Line(leftPanelStart+width, middleEdge, leftPanelStart+width, bottomEdge, redDotted)
-	canvas.Line(bottomPanelStart+length, middleEdge, bottomPanelStart+length, bottomEdge, redDotted)
-	canvas.Line(rightPanelStart+width, middleEdge, rightPanelStart+width, bottomEdge, redDotted)
+	// canvas.Line(leftPanelStart+width, middleEdge, leftPanelStart+width, bottomEdge, redDotted)
+	// canvas.Line(bottomPanelStart+length, middleEdge, bottomPanelStart+length, bottomEdge, redDotted)
+	// canvas.Line(rightPanelStart+width, middleEdge, rightPanelStart+width, bottomEdge, redDotted)
 
 	// Step 3: Middle horizontal fold line
-	canvas.Line(leftPanelStart, middleEdge, lidPanelStart+width, middleEdge, redDotted)
+	// canvas.Line(leftPanelStart, middleEdge, lidPanelStart+width, middleEdge, redDotted)
 
 	// Step 4: Top horizontal fold line for the lid
-	canvas.Line(topPanelStart, topEdge+height, topPanelStart+length, topEdge+height, redDotted)
+	// canvas.Line(topPanelStart, topEdge+height, topPanelStart+length, topEdge+height, redDotted)
 }
 
 // drawCutLines draws all the cut lines (solid blue lines)

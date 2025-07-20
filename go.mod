@@ -1,4 +1,4 @@
-module 42clients.com/pbox
+module 42clients.com/puzzlebox
 
 go 1.23.4
 
